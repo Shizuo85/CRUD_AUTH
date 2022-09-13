@@ -67,8 +67,6 @@ const protect = catchAsync(async (req, res, next) => {
 	next();
 });
 
-const restrictTo = (...roles) => {};
-
 const logout = catchAsync(async (req, res, next) => {});
 
 module.exports = {
