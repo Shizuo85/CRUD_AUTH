@@ -17,6 +17,6 @@ router.route('/signup').post(signup);
 router.route('/forgotPassword').post(forgotPassword);
 router.route('/resetPassword/:token').post(resetPassword);
 router.route('/confirmEmail/:token').get(confirmEmail);
-router.route('/logout').get(protect,restrictTo("admin", "user") ,logout);
+router.route('/logout').get(protect,logout);
 
 module.exports = router;
