@@ -70,13 +70,13 @@ const confirmEmail = catchAsync(async (req, res, next) => {
 
 	// if user token does not exist
 	if(!user){
-		return res.status(400).send({ message : "Token is invalid"})
+		return next(new AppError('Token is invalid', 400));
 	}
 	// else if user token is valid, save new user password
 	user.active = true;
 	user.confirmToken = undefined;
 
-	await user.save();
+	await user.save({ validateBeforeSave: false });
 	createSendToken(user, 200, res);
 
 	next();
@@ -93,7 +93,9 @@ const protect = catchAsync(async (req, res, next) => {
 	}
 	// if token is not present
 	if(!token){
-		return res.status(401).send({message : "User is not Authorized, please Log in"})
+		return next(
+			new AppError('You are not logged in! Please log in to get access', 401)
+		);
 	}
 
 	// verify token in the header
@@ -104,28 +106,41 @@ const protect = catchAsync(async (req, res, next) => {
 
 	// if user does not exists
 	if(!currUser){
-		return res.status(401).send({message : "Unauthorized!, user does not exists"})
+		return next(new AppError('The user no longer exists', 401));
 	}
 
 	// check if user password has changed, check time jwt was issued 
 	if(currUser.changedPasswordAfter(jwtVerifyAsync.iat)){
-		return res.status(401).send({message : "Password was recently changed, Login again"});
+		return next(
+			new AppError('User recently changed password, please login again', 401)
+		);
 	}
 
 	// check if user is logged out
 	if(currUser.loggedOut){
-		return res.status(401).send({message : "User is not signed in, Sign in to gain access"});
+		return next(
+			new AppError('You are not logged in! Please log in to get access', 401)
+		);
 	}
 	req.user = currUser;
 	next();
 });
+
+const restrictTo = (...roles) => {
+	return (req, res, next) => {
+		if (!roles.includes(req.user.role)) {
+			return next(
+				new AppError(`You do not have permission to perform this action`, 403)
+			);
+		}
+		next();
+	};
+};
 // log out function 
 const logout = catchAsync(async (req, res, next) => {
-	res.cookie('jwt', '', { maxAge: 1 });
 	const user = await User.findOne({
 		email: req.user.email,
 	});
-	user.loggedOut = true;
 	await user.save({ validateBeforeSave: false });
 
 	res.status(200).json({
@@ -142,5 +157,6 @@ module.exports = {
 	resetPassword,
 	confirmEmail,
 	protect,
+	restrictTo,
 	logout
 };
